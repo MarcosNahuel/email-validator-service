@@ -1,20 +1,17 @@
 FROM node:20-alpine
 WORKDIR /app
 
-# Solo package.json para instalar deps
+# Instala solo prod deps
 COPY package.json ./
+RUN npm i --omit=dev
 
-# ---> Guard: falla el build si nodemailer aún está en package.json
-RUN echo "=== package.json que llegó ===" \
- && cat /app/package.json \
- && node -e "const p=require('./package.json'); if (p.dependencies&&p.dependencies.nodemailer) { throw new Error('❌ package.json contiene nodemailer; quítalo antes de build.'); }" \
- && npm i --omit=dev \
- && echo '=== deps instaladas ===' \
- && (npm ls --depth=0 || true)
-
-# Copiar el resto del código
+# Copia el código
 COPY . .
 
 ENV NODE_ENV=production
+
+# El puerto donde escucha tu app
 EXPOSE 3000
+
+# Arranca la app
 CMD ["node","index.js"]

@@ -1,7 +1,7 @@
 // index.js
 const express = require("express");
 const dns = require("dns").promises;
-const SMTPConnection = require("smtp-connection"); // <— paquete correcto
+const SMTPConnection = require("smtp-connection");
 
 const app = express();
 app.use(express.json());
@@ -9,10 +9,26 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || "";
 
+// Validar que la API_KEY esté configurada
+if (!API_KEY) {
+  console.error("ERROR: API_KEY environment variable is required!");
+  console.error("Please set API_KEY in your environment variables");
+  process.exit(1);
+}
+
+// Middleware para logging de requests
+app.use((req, res, next) => {
+  console.log(
+    `${new Date().toISOString()} - ${req.method} ${req.path} - IP: ${req.ip}`
+  );
+  next();
+});
+
 // helper: misma forma de salida que venías usando (array con un objeto)
 function out(res, email, deliverability, reason, extra = {}) {
   return res.json([{ ok: true, email, deliverability, reason, ...extra }]);
 }
+
 function bad(res, msg, code = 400) {
   return res.status(code).json([{ ok: false, reason: msg }]);
 }
@@ -26,9 +42,9 @@ async function checkRcpt(host, email) {
       ignoreTLS: false, // si el server ofrece STARTTLS, lo usa
       requireTLS: false, // no forzamos; muchos MX lo piden igual
       tls: { rejectUnauthorized: false },
-      connectionTimeout: 8000,
-      greetingTimeout: 8000,
-      socketTimeout: 8000,
+      connectionTimeout: 10000, // aumentado a 10 segundos
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
       // logger: true,       // descomenta para ver wirelog
     });
 
@@ -39,14 +55,26 @@ async function checkRcpt(host, email) {
       resolve({ status, code, err: err && String(err) });
     };
 
-    conn.on("error", (e) => finish("unknown", "smtp_conn_err", e));
+    conn.on("error", (e) => {
+      console.log(`SMTP connection error to ${host}: ${e.message}`);
+      finish("unknown", "smtp_conn_err", e);
+    });
 
     conn.connect(() => {
       conn.mail({ from: "" }, (err) => {
-        if (err) return finish("unknown", "smtp_mailfrom_err", err);
+        if (err) {
+          console.log(`SMTP MAIL FROM error to ${host}: ${err.message}`);
+          return finish("unknown", "smtp_mailfrom_err", err);
+        }
         conn.rcpt({ to: email }, (err2) => {
-          if (!err2) return finish("ok", 250);
+          if (!err2) {
+            console.log(`SMTP RCPT TO success for ${email} at ${host}`);
+            return finish("ok", 250);
+          }
           const c = err2.responseCode || 0;
+          console.log(
+            `SMTP RCPT TO error for ${email} at ${host}: ${c} - ${err2.message}`
+          );
           if (c === 550 || c === 551 || c === 553)
             return finish("undeliverable", c);
           if (String(c).startsWith("4")) return finish("risky", c); // 4xx temporales
@@ -58,7 +86,15 @@ async function checkRcpt(host, email) {
 }
 
 // health con version para comprobar el despliegue
-app.get("/health", (_, res) => res.json({ ok: true, version: "starttls-v3" }));
+app.get("/health", (_, res) => {
+  console.log("Health check requested");
+  res.json({
+    ok: true,
+    version: "1.0.7",
+    timestamp: new Date().toISOString(),
+    apiKeyConfigured: !!API_KEY,
+  });
+});
 
 // lógica compartida GET/POST
 async function handleValidate(email, res) {
@@ -91,16 +127,67 @@ async function handleValidate(email, res) {
 
 // GET /validate?email=...
 app.get("/validate", async (req, res) => {
-  if (!API_KEY || req.header("x-api-key") !== API_KEY)
+  const apiKey = req.header("x-api-key");
+  if (!apiKey) {
+    console.log("Missing x-api-key header");
+    return bad(res, "missing x-api-key header", 401);
+  }
+
+  if (apiKey !== API_KEY) {
+    console.log("Invalid API key provided");
     return bad(res, "unauthorized", 401);
+  }
+
+  console.log("Validating email via GET request");
   return handleValidate(req.query.email, res);
 });
 
 // POST /validate  { "email": "..." }
 app.post("/validate", async (req, res) => {
-  if (!API_KEY || req.header("x-api-key") !== API_KEY)
+  const apiKey = req.header("x-api-key");
+  if (!apiKey) {
+    console.log("Missing x-api-key header");
+    return bad(res, "missing x-api-key header", 401);
+  }
+
+  if (apiKey !== API_KEY) {
+    console.log("Invalid API key provided");
     return bad(res, "unauthorized", 401);
+  }
+
+  console.log("Validating email via POST request");
   return handleValidate(req.body && req.body.email, res);
 });
 
-app.listen(PORT, "0.0.0.0", () => console.log(`validator up on ${PORT}`));
+// Ruta de prueba para verificar que el servicio está funcionando
+app.get("/", (_, res) => {
+  res.json({
+    message: "Email Validator Service",
+    version: "1.0.7",
+    endpoints: {
+      health: "/health",
+      validate: "/validate?email=test@example.com",
+      validatePost: "POST /validate with JSON body",
+    },
+    status: "running",
+  });
+});
+
+// Manejo de errores global
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+  res.status(500).json([{ ok: false, reason: "Internal server error" }]);
+});
+
+// Manejo de rutas no encontradas
+app.use("*", (req, res) => {
+  res.status(404).json([{ ok: false, reason: "Endpoint not found" }]);
+});
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Email Validator Service started successfully!`);
+  console.log(`📍 Listening on 0.0.0.0:${PORT}`);
+  console.log(`🔑 API Key configured: ${API_KEY ? "Yes" : "No"}`);
+  console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+  console.log(`✅ Ready to validate emails!`);
+});
