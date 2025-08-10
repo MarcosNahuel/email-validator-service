@@ -23,7 +23,7 @@ const envSchema = z.object({
   CACHE_TTL_SECONDS: z.coerce.number().default(86400),
   BLOCK_ROLES: z.coerce.boolean().default(true),
   BLOCK_DISPOSABLE: z.coerce.boolean().default(true),
-  ENABLE_SMTP_PROBE: z.coerce.boolean().default(true),
+  ENABLE_SMTP_PROBE: z.coerce.boolean().default(false),
   SMTP_TIMEOUT_MS: z.coerce.number().default(5000),
   SMTP_HELO_DOMAIN: z.string().default('verifier.yourdomain.com'),
   SMTP_FROM_EMAIL: z.string().email().default('bounce@verifier.yourdomain.com'),
@@ -45,5 +45,7 @@ if (!parsedEnv.success) {
   );
 }
 
-// Si el parse falla, usa los defaults del schema para no detener la app
-export const config = parsedEnv.success ? parsedEnv.data : envSchema.parse({});
+// Construye una configuración robusta: usa defaults y sobreescribe con valores válidos del entorno
+const defaults = envSchema.parse({});
+const partial = envSchema.partial().parse(process.env);
+export const config = { ...defaults, ...partial } as typeof defaults;
