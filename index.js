@@ -9,11 +9,11 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || "";
 
-// Validar que la API_KEY esté configurada
+// Validar que la API_KEY esté configurada (no abortar para permitir /health)
 if (!API_KEY) {
-  console.error("ERROR: API_KEY environment variable is required!");
-  console.error("Please set API_KEY in your environment variables");
-  process.exit(1);
+  console.warn(
+    "WARN: API_KEY is not set. /validate will return 401 until you set it."
+  );
 }
 
 // Middleware para logging de requests
@@ -90,7 +90,7 @@ app.get("/health", (_, res) => {
   console.log("Health check requested");
   res.json({
     ok: true,
-    version: "1.0.7",
+    version: "1.0.9",
     timestamp: new Date().toISOString(),
     apiKeyConfigured: !!API_KEY,
   });
@@ -163,7 +163,7 @@ app.post("/validate", async (req, res) => {
 app.get("/", (_, res) => {
   res.json({
     message: "Email Validator Service",
-    version: "1.0.7",
+    version: "1.0.9",
     endpoints: {
       health: "/health",
       validate: "/validate?email=test@example.com",
