@@ -1,0 +1,68 @@
+{
+  "info": {
+    "name": "Email Validator Service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Healthz",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/healthz",
+          "host": ["{{baseUrl}}"],
+          "path": ["healthz"]
+        }
+      }
+    },
+    {
+      "name": "Readyz",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/readyz",
+          "host": ["{{baseUrl}}"],
+          "path": ["readyz"]
+        }
+      }
+    },
+    {
+      "name": "Validate (POST)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-api-key", "value": "{{apiKey}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"test@example.com\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/validate",
+          "host": ["{{baseUrl}}"],
+          "path": ["validate"]
+        }
+      }
+    },
+    {
+      "name": "Validate (GET)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "x-api-key", "value": "{{apiKey}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/validate?email=test@example.com",
+          "host": ["{{baseUrl}}"],
+          "path": ["validate"],
+          "query": [{ "key": "email", "value": "test@example.com" }]
+        }
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "apiKey", "value": "changeme" }
+  ]
+}

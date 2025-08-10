@@ -40,10 +40,10 @@ const parsedEnv = envSchema.safeParse(process.env);
 if (!parsedEnv.success) {
   // eslint-disable-next-line no-console
   console.error(
-    '❌ Invalid environment variables:',
+    '❌ Invalid environment variables (continuing with safe defaults):',
     parsedEnv.error.flatten().fieldErrors,
   );
-  throw new Error('Invalid environment variables.');
 }
 
-export const config = parsedEnv.data;
+// Si el parse falla, usa los defaults del schema para no detener la app
+export const config = parsedEnv.success ? parsedEnv.data : envSchema.parse({});
