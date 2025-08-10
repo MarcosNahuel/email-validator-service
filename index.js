@@ -103,4 +103,4 @@ app.post("/validate", async (req, res) => {
   return handleValidate(req.body && req.body.email, res);
 });
 
-app.listen(PORT, () => console.log(`validator up on ${PORT}`));
+app.listen(PORT, "0.0.0.0", () => console.log(`validator up on ${PORT}`));
