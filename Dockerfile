@@ -33,7 +33,7 @@ EXPOSE 3000
 # Define un chequeo de salud para que EasyPanel sepa si la app está funcionando.
 # Asegúrate de que la ruta /healthz existe.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -q --spider http://localhost:3000/healthz || exit 1
+  CMD node -e "const http=require('http');const req=http.get('http://127.0.0.1:3000/healthz',res=>process.exit(res.statusCode===200?0:1));req.on('error',()=>process.exit(1))"
 
 # Comando para iniciar el servidor
 CMD [ "node", "dist/server.js" ]
