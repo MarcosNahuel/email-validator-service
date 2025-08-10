@@ -21,6 +21,7 @@ const envSchema = z.object({
   RATE_LIMIT_KEY_PER_MIN: z.coerce.number().default(600),
   REDIS_URL: z.string().optional(),
   CACHE_TTL_SECONDS: z.coerce.number().default(86400),
+  DNS_TIMEOUT_MS: z.coerce.number().default(2000),
   BLOCK_ROLES: z.coerce.boolean().default(true),
   BLOCK_DISPOSABLE: z.coerce.boolean().default(true),
   ENABLE_SMTP_PROBE: z.coerce.boolean().default(false),

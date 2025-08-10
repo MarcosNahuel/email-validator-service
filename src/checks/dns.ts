@@ -1,5 +1,6 @@
 import { promises as dns } from 'dns';
 import { logger } from '../utils/logger.js';
+import { config } from '../config.js';
 
 export interface DnsCheckResult {
   domain_exists: boolean;
@@ -10,7 +11,19 @@ export interface DnsCheckResult {
 
 export async function checkDns(domain: string): Promise<DnsCheckResult> {
   try {
-    const mxRecords = await dns.resolveMx(domain);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), config.DNS_TIMEOUT_MS);
+    // dns.resolveMx no acepta AbortController, así que aplicamos timeout manual con Promise.race
+    const mxRecords = (await Promise.race([
+      dns.resolveMx(domain),
+      new Promise<any[]>((_, rej) =>
+        setTimeout(
+          () => rej(new Error('DNS_MX_TIMEOUT')),
+          config.DNS_TIMEOUT_MS,
+        ),
+      ),
+    ])) as any[];
+    clearTimeout(timeout);
     if (mxRecords && mxRecords.length > 0) {
       const sorted = mxRecords.sort((a, b) => a.priority - b.priority);
       return {
@@ -20,7 +33,11 @@ export async function checkDns(domain: string): Promise<DnsCheckResult> {
       };
     }
   } catch (error: any) {
-    if (error?.code !== 'ENODATA' && error?.code !== 'ENOTFOUND') {
+    if (
+      error?.code !== 'ENODATA' &&
+      error?.code !== 'ENOTFOUND' &&
+      error?.message !== 'DNS_MX_TIMEOUT'
+    ) {
       logger.warn({ err: error, domain }, 'Unexpected DNS MX lookup error');
     }
   }

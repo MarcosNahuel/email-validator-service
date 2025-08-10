@@ -96,6 +96,16 @@ export async function checkSmtp(
       notes: 'SMTP probe disabled or no MX records found.',
     };
   }
+  // En hosts que bloquean puerto 25, evita caídas forzando 'blocked' rápido
+  if (process.env.FORCE_SMTP_BLOCKED === 'true') {
+    return {
+      enabled: true,
+      connection: 'blocked',
+      deliverable: false,
+      catch_all_suspected: false,
+      notes: 'SMTP probing forced blocked by env',
+    };
+  }
 
   let finalConnection: SmtpCheckResult['connection'] = 'error';
   let deliverable = false;
