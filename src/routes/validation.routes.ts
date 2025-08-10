@@ -23,6 +23,16 @@ const validateRequest =
     }
   };
 
+// Ruta ligera para verificar routing y auth, sin DNS/SMTP
+validationRouter.get(
+  '/validate/ping',
+  apiKeyAuth,
+  apiKeyRateLimiter,
+  async (_req: Request, res: Response) => {
+    res.json({ ok: true, route: '/validate/ping' });
+  },
+);
+
 validationRouter.get(
   '/validate',
   apiKeyAuth,
