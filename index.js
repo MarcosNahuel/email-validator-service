@@ -14,10 +14,7 @@ app.get("/validate", async (req, res) => {
   if (!API_KEY || req.header("x-api-key") !== API_KEY) return bad(res,"unauthorized",401);
   const email = (req.query.email||"").trim().toLowerCase();
   if (!email) return bad(res,"missing email");
-  const re = /^[^
-@]+@[^
-@]+\.[^
-@]{2,}$/;
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   if (!re.test(email)) return res.json({ok:true, email, deliverability:"UNDELIVERABLE", reason:"syntax"});
 
   const [local, domain] = email.split("@");
@@ -38,7 +35,7 @@ app.get("/validate", async (req, res) => {
         if (buf.endsWith("\r\n")) {
           const line = buf.trim(); buf="";
           if (stage===0 && /^220/.test(line)) { sock.write("HELO italicia.com\r\n"); stage=1; }
-          else if (stage===1 && /^250/.test(line)) { sock.write("MAIL FROM: <>\r\n"); stage=2; }
+          else if (stage===1 && /^250/.test(line)) { sock.write("MAIL FROM: <\r\n"); stage=2; }
           else if (stage===2 && /^250/.test(line)) { sock.write(`RCPT TO: <${email}>\r\n`); stage=3; }
           else if (stage===3) {
             if (/^250/.test(line) || /^251/.test(line)) accepted=true;
