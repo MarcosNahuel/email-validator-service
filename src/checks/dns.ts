@@ -2,6 +2,34 @@ import { promises as dns } from 'dns';
 import { logger } from '../utils/logger.js';
 import { config } from '../config.js';
 
+async function resolveMxViaDoH(domain: string): Promise<string[]> {
+  try {
+    const url = `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(
+      domain,
+    )}&type=MX`;
+    const res = await fetch(url, {
+      headers: { accept: 'application/dns-json' },
+      signal: AbortSignal.timeout(config.DNS_TIMEOUT_MS),
+    } as any);
+    if (!res.ok) return [];
+    const data: any = await res.json();
+    const answers: any[] = data.Answer || [];
+    const mxHosts: { priority: number; exchange: string }[] = answers
+      .map((a) => String(a.data || ''))
+      .map((line) => line.trim())
+      .filter((line) => /\s/.test(line))
+      .map((line) => {
+        const [prioStr, host] = line.split(/\s+/, 2);
+        const exchange = host?.replace(/\.$/, '') || '';
+        return { priority: parseInt(prioStr, 10) || 0, exchange };
+      });
+    mxHosts.sort((a, b) => a.priority - b.priority);
+    return mxHosts.map((m) => m.exchange).filter(Boolean);
+  } catch (err) {
+    return [];
+  }
+}
+
 export interface DnsCheckResult {
   domain_exists: boolean;
   has_mx: boolean;
@@ -41,6 +69,14 @@ export async function checkDns(domain: string): Promise<DnsCheckResult> {
       logger.warn({ err: error, domain }, 'Unexpected DNS MX lookup error');
     }
   }
+
+  // Fallback: DoH (DNS over HTTPS) para entornos donde el UDP/53 está bloqueado
+  try {
+    const mxViaDoh = await resolveMxViaDoH(domain);
+    if (mxViaDoh.length > 0) {
+      return { domain_exists: true, has_mx: true, mx_records: mxViaDoh };
+    }
+  } catch {}
 
   try {
     const [aRecords, aaaaRecords] = await Promise.all([
