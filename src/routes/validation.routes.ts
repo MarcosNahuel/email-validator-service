@@ -5,6 +5,7 @@ import {
 } from '../services/validation.service.js';
 import {
   validateEmailSchema,
+  validateEmailQuerySchema,
   validateBulkEmailSchema,
 } from '../validators/email.validator.js';
 import { apiKeyAuth } from '../middleware/auth.js';
@@ -21,6 +22,22 @@ const validateRequest =
       next(error);
     }
   };
+
+validationRouter.get(
+  '/validate',
+  apiKeyAuth,
+  apiKeyRateLimiter,
+  validateRequest(validateEmailQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const email = String(req.query.email);
+      const result = await validateEmail(email);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 validationRouter.post(
   '/validate',

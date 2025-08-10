@@ -8,6 +8,14 @@ export const validateEmailSchema = z.object({
   }),
 });
 
+export const validateEmailQuerySchema = z.object({
+  query: z.object({
+    email: z
+      .string({ required_error: 'Email is required' })
+      .email('Invalid email format'),
+  }),
+});
+
 export const validateBulkEmailSchema = z.object({
   body: z.object({
     emails: z
